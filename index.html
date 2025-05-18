@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>United States GDP Bar Chart</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #0A2463;
+        }
+
+        #container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            max-width: 960px;
+            width: 100%;
+        }
+
+        h1#title {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #0A2463;
+        }
+
+        .visHolder {
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 500px;
+        }
+
+        .axis text {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            fill: #333;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #333;
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+        }
+
+        .tick line {
+            stroke: #ccc;
+            stroke-dasharray: 2,2;
+        }
+
+        .bar {
+            fill: #4285F4;
+            transition: fill 0.2s, transform 0.2s;
+        }
+
+        .bar:hover {
+            fill: #1A73E8;
+            transform: translateY(-2px);
+        }
+
+        .bar-label {
+            font-family: 'Arial', sans-serif;
+            font-size: 10px;
+            text-anchor: middle;
+            fill: #333;
+            font-weight: 500;
+        }
+
+        #tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(10, 36, 99, 0.9);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 14px;
+            text-align: center;
+            width: 180px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .info {
+            font-size: 0.8em;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div class="container" id="container">
+            <h1 id="title">United States GDP (1947-1952)</h1>
+            <div class="visHolder"></div>
+            <p class="info">Source: U.S. Bureau of Economic Analysis (Sample Data)</p>
+        </div>
+    </div>
+
+    <!-- 添加测试脚本 -->
+    <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        // 配置参数
+        const width = 800,
+              height = 400,
+              margin = { top: 20, right: 20, bottom: 90, left: 80 }, // 增加底部边距以容纳标签
+              barPadding = 0.1; // 条形图之间的间距
+
+        // 创建SVG容器
+        const svg = d3.select('.visHolder')
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom)
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // 创建提示框
+        const tooltip = d3.select('body')
+            .append('div')
+            .attr('id', 'tooltip')
+            .style('opacity', 0);
+
+        // 使用静态数据（前20个季度）
+        const staticData = [
+            ["1947-01-01", 243.1],
+            ["1947-04-01", 246.3],
+            ["1947-07-01", 250.1],
+            ["1947-10-01", 254.3],
+            ["1948-01-01", 260.3],
+            ["1948-04-01", 266.2],
+            ["1948-07-01", 272.8],
+            ["1948-10-01", 279.5],
+            ["1949-01-01", 277.9],
+            ["1949-04-01", 275.0],
+            ["1949-07-01", 271.8],
+            ["1949-10-01", 273.7],
+            ["1950-01-01", 284.2],
+            ["1950-04-01", 295.4],
+            ["1950-07-01", 308.4],
+            ["1950-10-01", 324.3],
+            ["1951-01-01", 338.7],
+            ["1951-04-01", 351.4],
+            ["1951-07-01", 359.3],
+            ["1951-10-01", 363.1]
+        ];
+
+        // 处理数据
+        const dataset = staticData;
+        
+        // 转换日期格式并创建格式化后的标签
+        const dates = dataset.map(d => new Date(d[0]));
+        const gdp = dataset.map(d => d[1]);
+        const dateLabels = dataset.map(d => {
+            const date = new Date(d[0]);
+            const quarter = `Q${Math.floor(date.getMonth() / 3) + 1}`;
+            const year = date.getFullYear();
+            return `${year} ${quarter}`;
+        });
+        
+        // 创建比例尺
+        const xScale = d3.scaleBand()
+            .domain(dateLabels) // 使用格式化后的标签作为定义域
+            .range([0, width])
+            .padding(barPadding);
+        
+        const yScale = d3.scaleLinear()
+            .domain([0, d3.max(gdp)])
+            .range([height, 0]);
+        
+        // 创建坐标轴
+        const xAxis = d3.axisBottom(xScale)
+            .tickValues([]); // 隐藏默认的X轴标签，使用自定义标签
+        
+        const yAxis = d3.axisLeft(yScale)
+            .ticks(10)
+            .tickFormat(d => '$' + d + 'B'); // 添加美元符号和Billion缩写
+        
+        // 添加X轴
+        svg.append('g')
+            .attr('id', 'x-axis')
+            .attr('transform', `translate(0, ${height})`)
+            .call(xAxis);
+        
+        // 添加Y轴
+        svg.append('g')
+            .attr('id', 'y-axis')
+            .call(yAxis);
+        
+        // 添加Y轴标签
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', 0 - margin.left + 10) // 微调位置
+            .attr('x', 0 - (height / 2))
+            .attr('dy', '1em')
+            .style('text-anchor', 'middle')
+            .text('Gross Domestic Product (Billions of USD)');
+        
+        // 创建条形图
+        svg.selectAll('.bar')
+            .data(dataset)
+            .enter()
+            .append('rect')
+            .attr('class', 'bar')
+            .attr('x', (d, i) => xScale(dateLabels[i]))
+            .attr('y', d => yScale(d[1]))
+            .attr('width', xScale.bandwidth())
+            .attr('height', d => height - yScale(d[1]))
+            .attr('data-date', d => d[0])
+            .attr('data-gdp', d => d[1])
+            .on('mouseover', (event, d) => {
+                // 格式化日期为 "YYYY QX"
+                const date = new Date(d[0]);
+                const quarter = `Q${Math.floor(date.getMonth() / 3) + 1}`;
+                const year = date.getFullYear();
+                
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                tooltip.html(`
+                    <strong>${year} ${quarter}</strong><br>
+                    $${d[1].toLocaleString()} Billion
+                `)
+                .attr('data-date', d[0])
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+            });
+        
+        // 添加条形下方的标签
+        svg.selectAll('.bar-label')
+            .data(dataset)
+            .enter()
+            .append('text')
+            .attr('class', 'bar-label')
+            .attr('x', (d, i) => xScale(dateLabels[i]) + xScale.bandwidth() / 2)
+            .attr('y', height + 15) // 调整位置在条形下方
+            .attr('dy', '0.75em') // 垂直对齐
+            .attr('transform', (d, i) => `translate(0, 0) rotate(-60 ${xScale(dateLabels[i]) + xScale.bandwidth() / 2} ${height + 15})`) // 旋转标签以避免重叠
+            .attr('text-anchor', 'end') // 文本锚点设为末尾
+            .text((d, i) => dateLabels[i]);
+    </script>
+</body>
+</html>
